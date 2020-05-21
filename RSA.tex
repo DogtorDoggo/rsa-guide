@@ -1,0 +1,185 @@
+\documentclass[]{paper}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+% \setlength\parindent{0pt}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem{lemma}[theorem]{Lemma}
+
+% Title Page
+\title{A First Guide of RSA Public Key Encryption By Example}
+\author{DogtorDoggo}
+\begin{document}
+\maketitle
+\noindent Last modified \today
+\vspace*{1\baselineskip}
+
+%\begin{abstract}
+%\end{abstract}
+
+This document as well as its tex file can be obtained from 
+
+\begin{verbatim}
+    https://github.com/dogtordoggo/rsa-guide
+\end{verbatim}
+and distributed, modified for your own educational or any other purpose freely as long as credit is given to the original author.
+
+The purpose of this writeup is to serve as simple as possible an explanation of RSA public-key encryption as well as a demo showing how it works.
+\section*{Prerequisites}
+Basic understanding of \textbf{modulo arithmetic} as well as \textbf{Euler's Theorem} and \textbf{Fermat's Little Theorem} are assumed prerequisites before heading into this document. Their proof isn't too hard though if anyone is interested in figuring them out, but here they are (from wikipedia):
+
+\begin{theorem}[Euler's Theorem]
+If n and a are coprime positive integers, $\phi(n)$ is Euler's totient function, then
+\begin{align*}
+    a^{\phi(n)} = 1 \text{ mod } n
+\end{align*}
+\end{theorem}
+\begin{corollary}[Corollary of Euler's Theorem]
+For any integer $M < n=p\cdot q$, where $p$ and $q$ are two prime numbers, and any integer $r$, there is
+\begin{equation*}
+M^{r\cdot \phi(n) + 1} = M \text{ mod } n
+\end{equation*} 
+\end{corollary}
+See Appendix for the proof of this corollary.
+\begin{theorem}[Fermat's Little Theorem]
+If $p$ is a prime number, then for any integer $a$
+\begin{align*}
+    a^p &= a \text{ mod } p
+\end{align*}
+or
+\begin{align*}
+    a^{p-1} &= 1 \text{ mod } p
+\end{align*}
+\end{theorem}
+\newpage
+\section*{\large What we need:}
+\begin{enumerate}
+    \item Two large prime numbers $p$ and $q$ and $n = p\cdot q$, for the sake of demonstration and simplicity we pick $p = 41, q = 67$. We can then calculate
+\begin{eqnarray*}
+n &=& p \cdot q = 41 \cdot 67 = 2747 \\
+\phi(n) &=& p\cdot q \cdot (1- \frac{1}{p})\cdot (1-\frac{1}{q})= (p-1)\cdot(q-1) = 40 \cdot 66 = 2640
+\end{eqnarray*}
+Note that $\phi(n)$ is Euler's totient function of $n$.
+    \item A small prime number $s=13$.
+\end{enumerate}
+
+
+From here we can calculate other variables needed for our RSA algorithm. First of all, according to Corollary of Euler's Theorem, for any integer $M < n$, and any integer $r$, there is
+\begin{align*}
+    M^{r\cdot\phi(n) + 1} = M \text{ mod } n
+\end{align*}
+
+$s$ is a (small) prime number, therefore gcd$(s, \phi(n)))=1$, so the inverse of $s$ mod $\phi(n)$ exists (See Lemma 1 in Appendix), note it as $t = s^{-1}\text{ mod } \phi(n)$. $t$ could be calculated using \emph{Euclid's algorithm}. See Appendix for a source code doing Euclid's algorithm calculating those coefficients. What this also means is that there exists some integer $r$ such that $s\times t = r\times\phi(n)+1$.
+
+tl;dr: We need two large prime numbers $p$ and $q$, and a smaller prime number $s$, then $(s,\text{ }p\cdot q)$ would be public key pair. Another integer $t = s^{-1}\text{ mod }\phi(p\cdot q)$ is calcualted, and $(t,\text{ }p\cdot q)$ would be private key pair.
+\section*{RSA}
+Now we can deploy our public-key encryption algorithm. Make $(s,n)$ the public key pair, and $(t,n)$ private key pair. Denote $M$ as plaintext message, $E$ as encrypted message.
+
+\textbf{Encryption:}
+\begin{eqnarray*}
+E = M^s\ mod\ n
+\end{eqnarray*}
+
+\textbf{Decryption:}
+\begin{eqnarray*}
+M = E^t\ \mod\ n 
+\end{eqnarray*}
+
+\textbf{Proof:}
+\begin{eqnarray*}
+E^t\text{ mod }n &=& (M^s)^t\text{ mod }n \\
+&=& M^{s t}\text{ mod }n \\
+&=& M^{r\phi(n) + 1}\text{ mod }n \\
+&=& M\text{ mod }n \\
+&=& M
+\end{eqnarray*}
+
+\textbf{Why is this secure?}
+\bigskip
+
+Without the knowledge of $p$ and $q$, we can't find $\phi(n)=(p-1)\cdot(q-1)$, therefore we can't calculate $t = s^{-1}\text{ mod }\phi(n)$ based on the information of $(s,n)$. This means we can't calculate private key pair's $t$ from the public key pair $(s,n)$.
+
+\textbf{Example:}
+
+Let's continue with the example where we chose $p = 41, q = 67$ then we have $n = 2747, \phi(n) = 2640$, then we choose $s = 13$. Then by Euclid's Algorithm, we have 
+\begin{align*}
+s t + r\phi(n) &= 13\times -203 + 1\times2640 = 1\\
+t &= -203\text{ mod } 2640 = 2437
+\end{align*}
+Therefore in this case public key is $(s,n) = (13,2747)$, the private key pair is $(t,n) = (2437, 2747)$. Suppose our original message is an integer $M = 2017$, the year of this writeup. We can then go ahead and calculate encrypted message
+\begin{equation*}
+E = M^s\text{ mod }n = 2017^{13}\text{ mod }2747 = 800
+\end{equation*}
+
+There is a binary-like efficient algorithm to calculate the above modulo due to the simple fact that
+\begin{align*}
+    a\cdot b = (a\text{ mod }n)\cdot(b\text{ mod }n)\text{ mod }n
+\end{align*}
+A matlab command of mod(2017\^{}13, 2747) would produce \textit{wrong} result. An efficient algorithm calculating modulos of large exponential modulos is given in Appendix. To recover original message from the encrypted message, we can do
+\begin{eqnarray*}
+M = E^t\text{ mod }n = 800^{2437}\text{ mod }2747 = 2017
+\end{eqnarray*}
+And we recovered the original message of 2017 from the encrypted message of 800.
+\newpage
+\section*{Appendix}
+
+\textbf{Lemma 1} For two positive integers $s$ and $n$, $n > 1$, there exists $s$'s inverse mod $n$, noted as $s^{-1}\text{ mod }n$, if and only if gcd$(s,n) = 1$. 
+
+\textbf{Proof}
+
+Necessity: If gcd$(s,n) = 1$, by Euclid's algorithm, there exist integers $t$ and $r$ such that
+\begin{eqnarray*}
+t\cdot s + r\cdot n = 1
+\end{eqnarray*}
+Therefore $t = s^{-1}\ mod\ n$.
+
+Sufficiency: If there exists an integer $t = s^{-1}\text{ mod } n$, it means for some integer $r$ there is
+\begin{eqnarray*}
+t\cdot s = r\cdot n + 1
+\end{eqnarray*}
+If gcd$(s,n) = k > 1$, we can divide both sides of above equation by $k$ and get
+\begin{eqnarray*}
+t\cdot\frac{s}{k} = r\cdot\frac{n}{k} + \frac{1}{k}
+\end{eqnarray*}
+Which is impossible.$\blacksquare$
+
+\textbf{Proof of Corollary of Euler's Theorem:}
+
+When $M$ is coprime of n, the above equation is direct result of Euler's Theorem.
+
+When not, $M$ must be multiple of $p$, $M = kp$ where $1 \le k < q$ or multiple of $q$, $M = kq$ where $1\le k < p$. Suppose the first case, $M = kp$, $1\le k < q$, $M$ is coprime of $q$ obviously, according to Fermat's little theorem, we have
+\begin{eqnarray*}
+	M^{q-1}= 1\text{ mod } q
+\end{eqnarray*}
+Therefore
+\begin{eqnarray*}
+	M^{r\cdot (p-1)\cdot (q-1)}= M^{r\cdot \phi(n)} = 1\text{ mod }q
+\end{eqnarray*}
+This can be re-written as
+\begin{eqnarray*}
+	M^{r\cdot \phi(n)} = zq + 1
+\end{eqnarray*}
+for some integer $z$. Multiple both sides of the equation by $M = k\cdot p$, we have
+\begin{eqnarray*}
+	M^{r\cdot \phi(n) + 1} = z\cdot k\cdot p\cdot q + M = z\cdot k\cdot n + M
+\end{eqnarray*}
+Which is equivalent to
+\begin{eqnarray*}
+	M^{r\times \phi(n) + 1} = M\text{ mod } n
+\end{eqnarray*}
+The $M = k\cdot q$ case is symmetrical thus proof is omitted. $\blacksquare$
+
+\textbf{A piece of code} doing Euler's Algorithm, calculating gcd and the coefficients $s$ and $t$ of two integers $a$ and $b$ such that
+\begin{eqnarray*}
+sa + tb = \text{gcd}(a,b)
+\end{eqnarray*}  
+can be found at https://github.com/dogtordoggo/rsa-guide/EuclidsAlgorithm.kt.
+
+\textbf{A piece of code} calculating modulos of large exponentials like
+\begin{eqnarray*}
+800^{2437}= 2017\text{ mod } 2747
+\end{eqnarray*}
+can be found at https://github.com/dogtordoggo/rsa-guide/BigNumberModulo.kt.
+\end{document}          
